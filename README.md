@@ -1,4 +1,4 @@
-# clasp-photonic-pairing
+# clasp_photon
 
 **Post-quantum encryption**
 
