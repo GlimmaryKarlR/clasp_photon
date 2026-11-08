@@ -1,12 +1,13 @@
 # clasp-photonic-pairing
 
-**Post-quantum photonic pairing via dual-camera capture.**
+**Post-quantum encryption**
 
-Analyzes two sequential QR code photos captured from a mobile device camera
-and derives a unique 256-bit cryptographic handshake key using the
-Dual-Coordinate Overlap Framework.
+Analyzes two sequential photos captured from a camera
+and derives a unique 256-bit cryptographic handshake key
 
-No external cryptographic dependencies. Uses only the browser's built-in
+No external cryptographic dependencies. 
+
+Uses only built-in
 Camera/ImageCapture API (for capture) and Canvas (for pixel access), plus a
 built-in SHA-256 for digest condensation.
 
@@ -94,43 +95,26 @@ Built-in FIPS 180-4 SHA-256 implementation. Used to condense the Hilbert accumul
 
 ---
 
-## Theory (Brief)
-
-Two sequential photos of a QR code on an active display capture discrete photon emissions striking the CMOS sensor. Under the Dual-Coordinate Overlap Framework:
-
-- **System A** (4D spacetime grid): Pixel coordinates `(x, y)` with intensity variation `ΔI` and time `Δt` form a spatial translation vector `ΔX`.
-- **System B** (Hilbert space `l₂`): Wave components indexed by imaginary parts of non-trivial Riemann zeros γₙ.
-- **Unitary phase translation** `Û(ΔX) = exp(iπ ΔXⁿ / γₙ)` shifts each frame's complex state.
-- **Overlap tunneling filter** `T(E)` suppresses classical macro-shifts (hand movement, ambient light) while permitting resonant micro-photonic fluctuations.
-- **Kottman boundary check**: If the Hilbert chordal distance between frames falls within radius `r∞ ≈ 0.4142`, the variation is verified as physically authentic quantum photoelectric emission.
-
-The two frame accumulators are condensed into a 256-bit hex digest via SHA-256.
-
----
-
 ## ⚠️ Caveats
 
 ### 1. Experimental Cryptography — Not Formally Analyzed
 
-This is **custom cryptography**. The Dual-Coordinate math is mathematically interesting but has **not undergone formal cryptanalysis**.
+This is **custom cryptography**.  Has **not undergone formal cryptanalysis**.
 
 For high-security production systems, **do not use this as the sole cipher**. Wrap it inside a proven cipher such as **AES-GCM** or **ChaCha20-Poly1305**. Treat this as an obfuscation / key-material derivation layer, not a standalone encryption standard.
 
 ### 2. Camera Permission Required
 
-The mobile device must grant camera access (`navigator.mediaDevices.getUserMedia({ video: true })`). The operating system will display a permission prompt. There is **no silent backdoor** to the camera sensor.
-
-In time, this may not be necessary — alternative entropy capture methods (screen photon analysis, other hardware sensors, etc.) may replace direct camera access.
+The device must grant camera access (`navigator.mediaDevices.getUserMedia({ video: true })`). The operating system will display a permission prompt. There is **no silent backdoor** to the camera sensor.
 
 ### 3. Digest Uniqueness
 
-There is **no way to create an identical lighting scenario, ever**. Quantum mechanics governs photon emission and absorption at the sensor level; shot noise, thermal variance, and sub-pixel alignment ensure that two sequential photos will never produce identical digests in practice.
+There is **no way to create an identical lighting scenario, ever**. Quantum mechanics governs photon emission and absorption at the sensor level; shot noise, thermal variance, and sub-pixel alignment ensure that two sequential photos will never produce identical digests.
 
 ### 4. SHA-256 Is Still Present
 
 SHA-256 is used as the final digest condensation step. This is intentional: post-quantum security stacks **on top of** modern cryptography, it does not replace it outright. A 256-bit digest retains approximately 128 bits of post-quantum security against Grover's algorithm preimage attacks, requiring roughly 2¹²⁸ quantum evaluations.
 
-If you wish to eliminate SHA-256 entirely, replace the condensation step with additional Kronecker winding or exclusion-force iterations.
 
 ---
 
@@ -140,7 +124,7 @@ If you wish to eliminate SHA-256 entirely, replace the condensation step with ad
 
 Copyright © 2026 ClaspOS
 
-Permission is hereby granted, free of charge, to any individual or small business (defined as an entity with fewer than 50 employees and less than $1,000,000 USD in annual gross revenue) to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any individual or small business (defined as an entity with fewer than 50 employees and less than $1,000,000 USD in annual gross revenue) to use, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
@@ -161,4 +145,4 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Contact
 
-Questions about enterprise licensing: contact the repository owner.
+Questions about enterprise licensing: contact the repository owner - karlroescharchitecture@gmail.com
