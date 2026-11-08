@@ -30,7 +30,17 @@ export {
   KOTTMAN_CONSTANT,
   R_INFINITY,
 } from './photonicQuantumAnalyzer';
+
+export {
+  capturePhotonicPasskey,
+  derivePasskeyFromDigest,
+  verifyPhotonicPasskey,
+} from './photonicPairing';
 export type {
   Complex,
   PhotonicAnalysisResult,
 } from './photonicQuantumAnalyzer';
+export type {
+  PhotonicPairingResult,
+  PhotonicEnrollment,
+} from './photonicPairing';
