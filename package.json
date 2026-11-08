@@ -1,0 +1,37 @@
+{
+  "name": "clasp-photonic-pairing",
+  "version": "0.1.0",
+  "description": "Post-quantum photonic pairing via dual-camera capture. Analyzes two sequential QR code photos to derive a unique 256-bit handshake key using the Dual-Coordinate Overlap Framework.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "photonic",
+    "quantum",
+    "pairing",
+    "post-quantum",
+    "cryptography",
+    "qr",
+    "clasp",
+    "hilbert",
+    "riemann"
+  ],
+  "author": "ClaspOS",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GlimmaryKarlR/clasp_photon"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

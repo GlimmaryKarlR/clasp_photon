@@ -1,0 +1,10 @@
+# Development files - not published to npm
+src/
+tsconfig.json
+.gitignore
+LICENSE.md
+README.md
+package-lock.json
+coverage/
+*.log
+.DS_Store
