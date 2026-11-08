@@ -12,6 +12,11 @@ Camera/ImageCapture API (for capture) and Canvas (for pixel access), plus a
 built-in SHA-256 for digest condensation.
 
 ---
+## Brief
+
+https://zenodo.org/records/24058195
+
+---
 
 ## Install
 
