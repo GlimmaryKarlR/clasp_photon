@@ -2,16 +2,32 @@
 
 **Post-quantum encryption**
 
-Analyzes two sequential photos captured from a camera
-and derives a unique 256-bit cryptographic handshake key
-
 No external cryptographic dependencies. 
 
-Uses only built-in
-Camera/ImageCapture API (for capture) and Canvas (for pixel access), plus a
-built-in SHA-256 for digest condensation.
+---
+
+## QuaNet
+
+```
+▄█████▄ ▄▄ ▄▄  ▄▄▄  ███  ██ ▄▄▄▄▄ ▄▄▄▄▄▄ 
+██ ▄ ██ ██ ██ ██▀██ ██ ▀▄██ ██▄▄    ██   
+▀█████▀ ▀███▀ ██▀██ ██   ██ ██▄▄▄   ██   
+     ▀▀ 
+```
+
+**QuaNet — a quantum-secured network for communication anywhere on any signal**
+
+QuaNet aims to prove that ordinary consumer devices —
+uncooled mobile handsets, desktops, whatever is in a pocket or on a desk — can
+establish peer-to-peer cryptographic trust directly without a central authority issuing keys and without
+trusting any carrier in the middle.
+
+The end goal is to use **readily available signal — maybe SMS, maybe photonic, whatever** —
+as the carrier. Today the photonic path is implemented (camera photonic);
+the microwave/SMS path is specified here - https://zenodo.org/records/24096009
 
 ---
+
 ## Brief
 
 https://zenodo.org/records/24058195
@@ -141,6 +157,12 @@ There is **no way to create an identical lighting scenario, ever**. Quantum mech
 
 SHA-256 is used as the final digest condensation step. This is intentional: post-quantum security stacks **on top of** modern cryptography, it does not replace it outright. A 256-bit digest retains approximately 128 bits of post-quantum security against Grover's algorithm preimage attacks, requiring roughly 2¹²⁸ quantum evaluations.
 
+### 5. SMS-Band Signing Is Theoretical
+
+The Continuous-Variable (CV-QIP/CV-QDS) protocol described in the whitepaper
+above is a specification, not an implemented feature of this library. No
+microwave quadrature modulation, heterodyne detection, or LDPC
+reconciliation is performed by this package. See the QuaNet roadmap.
 
 ---
 
@@ -161,6 +183,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ---
 
 ## Roadmap
+
+### QuaNet milestones
+
+- [x] Photonic entropy source (mobile dual-photo capture)
+- [x] Entropy crypto pool (desktop / Node, no camera)
+- [x] Invite-acceptance co-signing (both sides contribute entropy at acceptance)
+- [ ] Signal-carrier abstraction: pluggable entropy sources (photonic, RF, other)
+- [ ] CV-QDS quadrature modulation over sub-6 GHz SDR (whitepaper §2)
+- [ ] Thermal parameter estimation (`τ`, `ξ`) and Holevo-bound checking (whitepaper §3)
+- [ ] LDPC reverse reconciliation + Toeplitz privacy amplification
+- [ ] SMS-band application signing pilot between two handsets
+
+### Library milestones
 
 - [ ] Node.js / non-browser build target (camera stub for testing)
 - [ ] WASM port of the Riemann filter for performance
