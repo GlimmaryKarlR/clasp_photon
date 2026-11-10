@@ -98,6 +98,27 @@ Converts an `ImageBitmap` to a `number[][]` grayscale array (0–255) using stan
 
 Built-in FIPS 180-4 SHA-256 implementation. Used to condense the Hilbert accumulator into the final 256-bit digest.
 
+### `EntropyCryptoPool` (desktop / Node — no camera)
+
+```typescript
+import { entropyCryptoPool } from 'clasp-photonic-pairing';
+
+// Pool accumulates live entropy from app start
+entropyCryptoPool.start();
+
+// At invite acceptance: condense to a one-time 64-hex digest
+// (same format as the mobile dual-photo photonic digest)
+const { digest, samples, sources } = entropyCryptoPool.condenseWithStats(24);
+```
+
+The desktop counterpart to the mobile dual-photo capture. Mixes timer jitter
+(monotonic vs wall-clock drift), event-loop scheduling lag, human interaction
+timing (timing only — never key content), machine state, and a CSPRNG
+contribution, condensed with SHA-256. Designed for co-signing flows where one
+side has no camera: at invite acceptance the mobile side contributes two photos
+33ms apart and the desktop side contributes its pool digest; both digests are
+combined into the shared signing/encryption key.
+
 ---
 
 ## ⚠️ Caveats

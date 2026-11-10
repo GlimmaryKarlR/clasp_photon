@@ -32,6 +32,11 @@ export {
 } from './photonicQuantumAnalyzer';
 
 export {
+  EntropyCryptoPool,
+  entropyCryptoPool,
+} from './entropyCryptoPool';
+
+export {
   capturePhotonicPasskey,
   derivePasskeyFromDigest,
   verifyPhotonicPasskey,
