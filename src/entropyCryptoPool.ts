@@ -17,7 +17,7 @@
  * cryptography — it does not replace it (see README caveats).
  */
 
-import { sha256Hex } from './photonicQuantumAnalyzer';
+import { sha256Hex } from './photonicQuantumAnalyzer.js';
 
 function now(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();

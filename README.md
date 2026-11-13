@@ -2,7 +2,9 @@
 
 **Post-quantum encryption**
 
-No external cryptographic dependencies. 
+No external cryptographic dependencies. Rust `no_std` core, TypeScript
+reference implementation, and a dependency-free carrier stack for photonic and
+SMS transport.
 
 ---
 
@@ -23,8 +25,44 @@ establish peer-to-peer cryptographic trust directly without a central authority 
 trusting any carrier in the middle.
 
 The end goal is to use **readily available signal — maybe SMS, maybe photonic, whatever** —
-as the carrier. Today the photonic path is implemented (camera photonic);
-the microwave/SMS path is specified here - https://zenodo.org/records/24096009
+as the carrier. The baseline here implements two concrete carriers: a
+**photonic** path (screen-rendered RGB frames captured by a camera) and an
+**SMS** path (framed bytes encoded as Base85 text). The same encrypted session
+can fragment across either, or fail over between them mid-message.
+
+The physical-layer microwave/CV-QIP path remains a specification:
+https://zenodo.org/records/24096009
+
+### Baseline implementation
+
+| Phase | Layer | Code | Status |
+|---|---|---|---|
+| 1 | Native PQ core | `native/` (Rust `no_std`), `src/crypto/` (TS reference) | ML-KEM-768, SHA-3/SHAKE, NTT, ChaCha20-Poly1305; Rust ↔ TS byte-for-byte cross-check |
+| 2 | Camera sensor | `src/sensor/cameraSensor.ts` | Manual ISO/exposure/focus/white balance, refresh-locked frame clock |
+| 3 | Spatial optical | `src/optical/` | 32×32×3 RGB frame, LDPC baseline, homography/PnP/MIC perspective correction |
+| 4 | Transport + session | `src/transport/`, `src/session/` | Base85 SMS and photonic carriers, fragmentation/failover, ML-KEM handshake, AEAD records |
+
+Full architecture, wire formats, and security limits: [`docs/QUANET.md`](docs/QUANET.md).
+
+---
+
+## Native core
+
+The cryptographic core is also implemented in Rust with **zero external
+crates** and `#![no_std]` for non-test builds. It ships as an `rlib` with a C
+ABI and as a separate wasm32 `cdylib`.
+
+```bash
+npm run build:native   # cargo tests, host rlib/CLI, wasm32 artifact
+npm run crosscheck     # byte-for-byte Rust/WASM ↔ TypeScript ML-KEM check
+npm test               # TypeScript build + full test suite
+npm run verify         # all of the above
+```
+
+The TypeScript implementation remains the portable reference and is used
+directly by browser/Node consumers. The native core is the path toward
+bare-metal, constrained devices, and future AVX2/NEON NTT kernels (currently
+scalar).
 
 ---
 
@@ -137,13 +175,99 @@ combined into the shared signing/encryption key.
 
 ---
 
+## QuaNet baseline API
+
+### Encrypted session
+
+```typescript
+import {
+  InitiatorHandshake,
+  ResponderHandshake,
+} from 'clasp-photonic-pairing';
+
+// Initiator
+const initiator = InitiatorHandshake.create();
+const initMessage = initiator.message(); // send 1184-byte public key
+
+// Responder
+const responder = ResponderHandshake.accept(initMessage);
+const response = responder.response; // send 1088-byte ct + 16-byte confirm
+
+// Initiator completes
+const session = initiator.complete(response);
+
+// Either side encrypts records. The nonce travels with the record.
+const record = session.encryptText('hello');
+const plaintext = responder.session.decryptText(record);
+```
+
+`establishLocalSession()` runs both sides in one process for tests and
+simulations. `fingerprintPublicKey()` returns a stable SHA3-256 fingerprint for
+out-of-band pinning.
+
+### Carriers
+
+```typescript
+import {
+  MultipathTransport,
+  createSmsLoopbackPair,
+  PhotonicCarrier,
+  FrameType,
+} from 'clasp-photonic-pairing';
+
+const [smsA, smsB] = createSmsLoopbackPair();
+const sender = new MultipathTransport([smsA]);
+const receiver = new MultipathTransport([smsB]);
+
+receiver.onMessage(async (message) => {
+  console.log(responder.session.decryptText(message.payload));
+});
+
+await sender.sendMessage(FrameType.Data, record, { sessionId: session.sessionId });
+```
+
+`PhotonicCarrier` takes a `{ display, capture }` link. `MultipathTransport`
+fragments at the smallest common payload, retries across carriers, and
+reassembles messages even when different carriers deliver different fragments.
+
+### Spatial optical frame
+
+```typescript
+import {
+  renderSpatialFrame,
+  decodeSpatialFrame,
+} from 'clasp-photonic-pairing';
+
+const frame = renderSpatialFrame(codewordBits); // 320×320 RGB image
+// ... the receiver captures the displayed frame ...
+const decoded = decodeSpatialFrame(capturedImage, tryDecode);
+```
+
+`codewordBits` is one 3072-bit LDPC codeword (`defaultLdpcCode.encode`).
+`decodeSpatialFrame` locates the four finders, rectifies perspective, samples
+the 32×32×3 payload, thresholds each channel, and lets the supplied callback
+validate candidate windings.
+
+---
+
 ## ⚠️ Caveats
 
 ### 1. Experimental Cryptography — Not Formally Analyzed
 
-This is **custom cryptography**.  Has **not undergone formal cryptanalysis**.
+This is **custom cryptography**. It has **not undergone formal cryptanalysis**
+and the ML-KEM implementation, while construction-compatible with Kyber-768 /
+ML-KEM-768, has **not passed FIPS 203 validation or KAT review**. The LDPC code
+is a custom baseline, not a standardized code.
 
-For high-security production systems, **do not use this as the sole cipher**. Wrap it inside a proven cipher such as **AES-GCM** or **ChaCha20-Poly1305**. Treat this as an obfuscation / key-material derivation layer, not a standalone encryption standard.
+For high-security production systems, **do not use this as the sole cipher**.
+Wrap it inside a proven cipher such as **AES-GCM** or **ChaCha20-Poly1305**.
+Treat this as an obfuscation / key-material derivation layer, not a standalone
+encryption standard.
+
+The QuaNet handshake is also **unauthenticated by default**: it protects
+against a passive quantum-capable adversary, but an active man-in-the-middle
+can substitute its own public key. Pin `fingerprintPublicKey()` out of band or
+layer an authenticated protocol on top.
 
 ### 2. Camera Permission Required
 
@@ -155,14 +279,19 @@ There is **no way to create an identical lighting scenario, ever**. Quantum mech
 
 ### 4. SHA-256 Is Still Present
 
-SHA-256 is used as the final digest condensation step. This is intentional: post-quantum security stacks **on top of** modern cryptography, it does not replace it outright. A 256-bit digest retains approximately 128 bits of post-quantum security against Grover's algorithm preimage attacks, requiring roughly 2¹²⁸ quantum evaluations.
+SHA-256 is used as the final digest condensation step in the legacy photonic
+pairing path. This is intentional: post-quantum security stacks **on top of**
+modern cryptography, it does not replace it outright. A 256-bit digest retains
+approximately 128 bits of post-quantum security against Grover's algorithm
+preimage attacks, requiring roughly 2¹²⁸ quantum evaluations.
 
-### 5. SMS-Band Signing Is Theoretical
+### 5. SMS Carrier Is Application-Layer
 
-The Continuous-Variable (CV-QIP/CV-QDS) protocol described in the whitepaper
-above is a specification, not an implemented feature of this library. No
-microwave quadrature modulation, heterodyne detection, or LDPC
-reconciliation is performed by this package. See the QuaNet roadmap.
+The QuaNet SMS carrier moves framed, encrypted bytes as Base85 text inside
+ordinary SMS messages. The Continuous-Variable (CV-QIP/CV-QDS) physical-layer
+protocol in the whitepaper above is still a specification: no microwave
+quadrature modulation, heterodyne detection, or quantum-channel reconciliation
+is performed by this package. See the QuaNet roadmap.
 
 ---
 
@@ -189,7 +318,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - [x] Photonic entropy source (mobile dual-photo capture)
 - [x] Entropy crypto pool (desktop / Node, no camera)
 - [x] Invite-acceptance co-signing (both sides contribute entropy at acceptance)
-- [ ] Signal-carrier abstraction: pluggable entropy sources (photonic, RF, other)
+- [x] Native post-quantum core (Rust `no_std`: Keccak, NTT, ML-KEM; TS reference; WASM)
+- [x] Manual camera sensor control and refresh-locked frame clock
+- [x] Spatial RGB modulation, LDPC baseline, perspective/PnP correction
+- [x] Carrier abstraction: photonic, SMS, loopback, multipath failover
+- [x] Fragmentation/reassembly preserving session state across carriers
+- [x] ML-KEM handshake and ChaCha20-Poly1305 session records
+- [ ] Authenticated handshake (fingerprint pinning / QR-bound identity)
+- [ ] AVX2 and NEON NTT kernels
+- [ ] FIPS 203 KATs and external cryptographic review
+- [ ] Generalized LDPC (GLDPC) spatial code
+- [ ] Real-handset camera calibration and capture pipeline
 - [ ] CV-QDS quadrature modulation over sub-6 GHz SDR (whitepaper §2)
 - [ ] Thermal parameter estimation (`τ`, `ξ`) and Holevo-bound checking (whitepaper §3)
 - [ ] LDPC reverse reconciliation + Toeplitz privacy amplification
@@ -197,7 +336,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### Library milestones
 
-- [ ] Node.js / non-browser build target (camera stub for testing)
+- [x] Node.js / non-browser build target (camera stub for testing)
+- [x] WASM build of the native core
 - [ ] WASM port of the Riemann filter for performance
 - [ ] Optional AES-GCM wrapper for production use
 - [ ] Cross-platform mobile (React Native, Flutter) bridge

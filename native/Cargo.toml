@@ -1,0 +1,22 @@
+[package]
+name = "clasp_photon_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "photon_cli"
+path = "src/bin/photon_cli.rs"
+
+[workspace]
+members = [".", "wasm"]
+default-members = ["."]
+resolver = "2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

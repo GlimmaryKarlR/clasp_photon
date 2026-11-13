@@ -29,23 +29,63 @@ export {
   RIEMANN_ZEROS,
   KOTTMAN_CONSTANT,
   R_INFINITY,
-} from './photonicQuantumAnalyzer';
+} from './photonicQuantumAnalyzer.js';
 
 export {
   EntropyCryptoPool,
   entropyCryptoPool,
-} from './entropyCryptoPool';
+} from './entropyCryptoPool.js';
 
 export {
   capturePhotonicPasskey,
   derivePasskeyFromDigest,
   verifyPhotonicPasskey,
-} from './photonicPairing';
+} from './photonicPairing.js';
 export type {
   Complex,
   PhotonicAnalysisResult,
-} from './photonicQuantumAnalyzer';
+} from './photonicQuantumAnalyzer.js';
 export type {
   PhotonicPairingResult,
   PhotonicEnrollment,
-} from './photonicPairing';
+} from './photonicPairing.js';
+
+// --- QuaNet baseline layers -------------------------------------------
+
+export * from './crypto/poly.js';
+export {
+  sha3_256,
+  sha3_512,
+  shake128,
+  shake256,
+} from './crypto/keccak.js';
+export * from './crypto/chacha20poly1305.js';
+export {
+  mlkemKeygen,
+  mlkemEncapsulate,
+  mlkemDecapsulate,
+  randomBytes,
+  MLKEM_K,
+  MLKEM_PUBLIC_KEY_BYTES,
+  MLKEM_SECRET_KEY_BYTES,
+  MLKEM_CIPHERTEXT_BYTES,
+  MLKEM_SHARED_SECRET_BYTES,
+} from './crypto/mlkem.js';
+export type {
+  MlKemKeyPair,
+  MlKemEncapsulation,
+} from './crypto/mlkem.js';
+
+export * from './sensor/cameraSensor.js';
+
+export * from './optical/perspective.js';
+export * from './optical/fec.js';
+export * from './optical/spatial.js';
+
+export * from './transport/base85.js';
+export * from './transport/framing.js';
+export * from './transport/carriers.js';
+
+export * from './session/quanetSession.js';
+
+export * from './util/bits.js';

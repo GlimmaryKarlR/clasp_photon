@@ -9,6 +9,10 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:native": "bash scripts/build-native.sh",
+    "crosscheck": "node scripts/crosscheck-native.mjs",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "verify": "npm run build && npm run build:native && npm run crosscheck && node --test test/*.test.mjs",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -33,5 +37,6 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "type": "module"
 }

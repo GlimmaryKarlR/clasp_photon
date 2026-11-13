@@ -11,7 +11,7 @@ import {
   PhotonicQuantumAnalyzer,
   imageBitmapToGrayscaleArray,
   sha256Hex,
-} from './photonicQuantumAnalyzer';
+} from './photonicQuantumAnalyzer.js';
 
 export interface PhotonicPairingResult {
   photonicDigest: string;
