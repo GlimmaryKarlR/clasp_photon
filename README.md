@@ -26,9 +26,14 @@ trusting any carrier in the middle.
 
 The end goal is to use **readily available signal — maybe SMS, maybe photonic, whatever** —
 as the carrier. The baseline here implements two concrete carriers: a
-**photonic** path (screen-rendered RGB frames captured by a camera) and an
-**SMS** path (framed bytes encoded as Base85 text). The same encrypted session
-can fragment across either, or fail over between them mid-message.
+**photonic** path (framed bytes over a display/capture link, plus the legacy
+sequential-photo lighting comparison for entropy) and an **SMS** path (framed
+bytes encoded as Base85 text). The same encrypted session can fragment across
+either, or fail over between them mid-message.
+
+The image content is not data. Sequential captures are compared for lighting
+and sensor entropy; the carrier treats the physical link as an opaque byte
+channel.
 
 The physical-layer microwave/CV-QIP path remains a specification:
 https://zenodo.org/records/24096009
@@ -39,7 +44,7 @@ https://zenodo.org/records/24096009
 |---|---|---|---|
 | 1 | Native PQ core | `native/` (Rust `no_std`), `src/crypto/` (TS reference) | ML-KEM-768, SHA-3/SHAKE, NTT, ChaCha20-Poly1305; Rust ↔ TS byte-for-byte cross-check |
 | 2 | Camera sensor | `src/sensor/cameraSensor.ts` | Manual ISO/exposure/focus/white balance, refresh-locked frame clock |
-| 3 | Spatial optical | `src/optical/` | 32×32×3 RGB frame, LDPC baseline, homography/PnP/MIC perspective correction |
+| 3 | Optical utilities | `src/optical/` | Homography/PnP/MIC geometry and LDPC FEC retained as standalone utilities; the photonic carrier does not decode image content |
 | 4 | Transport + session | `src/transport/`, `src/session/` | Base85 SMS and photonic carriers, fragmentation/failover, ML-KEM handshake, AEAD records |
 
 Full architecture, wire formats, and security limits: [`docs/QUANET.md`](docs/QUANET.md).
@@ -230,23 +235,35 @@ await sender.sendMessage(FrameType.Data, record, { sessionId: session.sessionId 
 fragments at the smallest common payload, retries across carriers, and
 reassembles messages even when different carriers deliver different fragments.
 
-### Spatial optical frame
+### Photonic link
 
 ```typescript
-import {
-  renderSpatialFrame,
-  decodeSpatialFrame,
-} from 'clasp-photonic-pairing';
+import { PhotonicCarrier } from 'clasp-photonic-pairing';
 
-const frame = renderSpatialFrame(codewordBits); // 320×320 RGB image
-// ... the receiver captures the displayed frame ...
-const decoded = decodeSpatialFrame(capturedImage, tryDecode);
+const carrier = new PhotonicCarrier({
+  link: {
+    async display(frame) {
+      // Publish the frame bytes to the physical channel.
+    },
+    async capture() {
+      // Return the next complete frame bytes, or null.
+      return null;
+    },
+  },
+});
+
+await carrier.send(frame);
+const received = await carrier.receiveOnce();
 ```
 
-`codewordBits` is one 3072-bit LDPC codeword (`defaultLdpcCode.encode`).
-`decodeSpatialFrame` locates the four finders, rectifies perspective, samples
-the 32×32×3 payload, thresholds each channel, and lets the supplied callback
-validate candidate windings.
+The carrier does not render or interpret image content. In the legacy
+pairing path, two photos captured ~33 ms apart are compared for
+lighting/sensor entropy (`PhotonicQuantumAnalyzer`); nothing in the image is
+decoded as data. A future photonic, RF, or file link only needs to move exact
+frame bytes through `display` and `capture`.
+
+`src/optical/perspective.ts` and `src/optical/fec.ts` remain available as
+standalone geometry/FEC utilities, but they are not on the carrier path.
 
 ---
 
@@ -293,6 +310,13 @@ protocol in the whitepaper above is still a specification: no microwave
 quadrature modulation, heterodyne detection, or quantum-channel reconciliation
 is performed by this package. See the QuaNet roadmap.
 
+### 6. Photonic Data Link Is Opaque
+
+The photonic carrier does not hide data in image pixels or decode spatial
+symbols. It moves framed bytes over a display/capture link. The legacy photonic
+pairing path compares sequential captures for lighting and sensor entropy; the
+image content itself is not used as key material or payload.
+
 ---
 
 ## License
@@ -320,14 +344,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - [x] Invite-acceptance co-signing (both sides contribute entropy at acceptance)
 - [x] Native post-quantum core (Rust `no_std`: Keccak, NTT, ML-KEM; TS reference; WASM)
 - [x] Manual camera sensor control and refresh-locked frame clock
-- [x] Spatial RGB modulation, LDPC baseline, perspective/PnP correction
-- [x] Carrier abstraction: photonic, SMS, loopback, multipath failover
+- [x] Optical geometry/FEC utilities (homography/PnP/MIC, LDPC baseline)
+- [x] Photonic byte link over an abstract display/capture channel
+- [x] Sequential-photo lighting/sensor entropy comparison (legacy pairing path)
+- [x] Carrier abstraction: photonic byte link, SMS, loopback, multipath failover
 - [x] Fragmentation/reassembly preserving session state across carriers
 - [x] ML-KEM handshake and ChaCha20-Poly1305 session records
 - [ ] Authenticated handshake (fingerprint pinning / QR-bound identity)
 - [ ] AVX2 and NEON NTT kernels
 - [ ] FIPS 203 KATs and external cryptographic review
-- [ ] Generalized LDPC (GLDPC) spatial code
+- [ ] Standardized LDPC codec if the retained utility is adopted
+- [ ] Retire or repurpose unused optical utilities
 - [ ] Real-handset camera calibration and capture pipeline
 - [ ] CV-QDS quadrature modulation over sub-6 GHz SDR (whitepaper §2)
 - [ ] Thermal parameter estimation (`τ`, `ξ`) and Holevo-bound checking (whitepaper §3)

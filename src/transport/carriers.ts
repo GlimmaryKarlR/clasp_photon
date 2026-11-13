@@ -1,35 +1,15 @@
 /**
  * Carrier abstraction for QuaNet.
  *
- * A `Carrier` moves opaque framed bytes. The optical carrier adds LDPC coding
- * and RGB spatial modulation; the SMS carrier maps frames to Base85 text.
- * `MultipathTransport` runs both at once, fragments at the smallest common
- * payload size and reassembles independently of which carrier delivered a
- * fragment. Session state lives in the frame header, so switching carriers
+ * A `Carrier` moves opaque framed bytes. The photonic carrier passes frames
+ * over an abstract display/capture link; the SMS carrier maps frames to Base85
+ * text. `MultipathTransport` runs both at once, fragments at the smallest
+ * common payload size and reassembles independently of which carrier delivered
+ * a fragment. Session state lives in the frame header, so switching carriers
  * mid-message does not disturb the cryptographic session.
  */
 
-import {
-  bytesToBits,
-  bitsToBytes,
-  xorshift32,
-} from '../util/bits.js';
-import {
-  LdpcCode,
-  defaultLdpcCode,
-  llrFromReliabilities,
-  type LdpcDecodeResult,
-} from '../optical/fec.js';
-import {
-  SPATIAL_CODEWORD_BITS,
-  type RenderOptions,
-  type SampledSpatialFrame,
-  type SpatialLayout,
-  createSpatialLayout,
-  decodeSpatialFrame,
-  renderSpatialFrame,
-} from '../optical/spatial.js';
-import type { RgbImage } from '../optical/perspective.js';
+import { xorshift32 } from '../util/bits.js';
 import {
   FrameFlags,
   FrameType,
@@ -126,54 +106,47 @@ export function createLoopbackPair(
 }
 
 /* ------------------------------------------------------------------ */
-/* Photonic carrier: LDPC + RGB spatial modulation                     */
+/* Photonic carrier: framed bytes over an abstract physical link       */
 /* ------------------------------------------------------------------ */
 
 export interface PhotonicLink {
-  /** Show a rendered spatial frame on the transmitting display. */
-  display(image: RgbImage, durationMs?: number): Promise<void> | void;
-  /** Capture the receiving camera's current view. */
-  capture(): Promise<RgbImage> | RgbImage;
+  /** Publish one complete frame to the physical channel. */
+  display(frame: Uint8Array, durationMs?: number): Promise<void> | void;
+  /** Return the next complete frame, or null when nothing is available. */
+  capture(): Promise<Uint8Array | null> | Uint8Array | null;
   close?(): Promise<void> | void;
 }
 
 export interface PhotonicCarrierOptions {
   link: PhotonicLink;
-  layout?: SpatialLayout;
-  code?: LdpcCode;
-  /** Time the display keeps a frame on screen. */
+  /** Time the link keeps a frame available to the receiver. */
   frameDurationMs?: number;
-  /** LDPC decoder iterations. */
-  maxIterations?: number;
-  render?: Omit<RenderOptions, 'cellPixels'>;
 }
 
-/** Optical frames are padded to one 2048-bit LDPC data block. */
+/** Upper bound for one photonic-link frame. */
 export const PHOTONIC_FRAME_BYTES = 256;
 export const PHOTONIC_MAX_PAYLOAD_BYTES = PHOTONIC_FRAME_BYTES - 22 - 4;
 
+/**
+ * Moves framed bytes over an arbitrary display/capture link.
+ *
+ * The carrier deliberately does not inspect image content. In the legacy
+ * pairing path, two photos 33 ms apart are compared for lighting/sensor
+ * entropy (`photonicQuantumAnalyzer.ts`); nothing in the image is decoded as
+ * data. A future photonic, RF, or file link only needs to deliver exact frame
+ * bytes through `display` and `capture`.
+ */
 export class PhotonicCarrier implements Carrier {
   readonly name = 'photonic';
   readonly maxPayloadBytes = PHOTONIC_MAX_PAYLOAD_BYTES;
   private handlers = new Set<(frame: Uint8Array) => void>();
   private readonly link: PhotonicLink;
-  private readonly layout: SpatialLayout;
-  private readonly code: LdpcCode;
   private readonly frameDurationMs: number;
-  private readonly maxIterations: number;
-  private readonly renderOptions: RenderOptions;
   private closed = false;
 
   constructor(options: PhotonicCarrierOptions) {
     this.link = options.link;
-    this.layout = options.layout ?? createSpatialLayout();
-    this.code = options.code ?? defaultLdpcCode;
     this.frameDurationMs = options.frameDurationMs ?? 100;
-    this.maxIterations = options.maxIterations ?? 50;
-    this.renderOptions = {
-      ...options.render,
-      cellPixels: this.layout.cellPixels,
-    };
   }
 
   async send(frame: Uint8Array): Promise<void> {
@@ -181,48 +154,18 @@ export class PhotonicCarrier implements Carrier {
     if (frame.length > PHOTONIC_FRAME_BYTES) {
       throw new Error(`photonic frame is ${frame.length} bytes, max ${PHOTONIC_FRAME_BYTES}`);
     }
-    const padded = new Uint8Array(PHOTONIC_FRAME_BYTES);
-    padded.set(frame);
-    const dataBits = bytesToBits(padded);
-    const codeword = this.code.encode(dataBits);
-    if (codeword.length !== SPATIAL_CODEWORD_BITS) {
-      throw new Error('LDPC codeword does not match the spatial frame size');
-    }
-    const rendered = renderSpatialFrame(codeword, this.renderOptions);
-    await this.link.display(rendered.image, this.frameDurationMs);
+    await this.link.display(frame, this.frameDurationMs);
   }
 
-  /** Decode a captured image into a validated frame, or null. */
-  decodeImage(image: RgbImage): Uint8Array | null {
-    let decodedFrame: Uint8Array | null = null;
-    let decodeStats: LdpcDecodeResult | null = null;
-    const result = decodeSpatialFrame(
-      image,
-      (sampled: SampledSpatialFrame) => {
-        const llrs = llrFromReliabilities(sampled.bits, sampled.errorProbabilities);
-        const decoded = this.code.decode(llrs, this.maxIterations);
-        decodeStats = decoded;
-        if (!decoded.syndromeOk) return false;
-        const codewordBytes = bitsToBytes(decoded.bits);
-        const parsed = tryDecodeFrame(codewordBytes.subarray(0, PHOTONIC_FRAME_BYTES));
-        if (!parsed) return false;
-        decodedFrame = codewordBytes.slice(0, parsed.frameBytes);
-        return true;
-      },
-      this.layout
-    );
-    void result;
-    void decodeStats;
-    return decodedFrame;
-  }
-
-  /** Capture one image and dispatch any decoded frame. */
+  /** Validate the next captured frame and dispatch it, or return null. */
   async receiveOnce(): Promise<Uint8Array | null> {
-    const image = await this.link.capture();
-    const frame = this.decodeImage(image);
-    if (frame) {
-      for (const handler of [...this.handlers]) handler(frame);
-    }
+    if (this.closed) throw new Error('photonic carrier is closed');
+    const captured = await this.link.capture();
+    if (!captured) return null;
+    const parsed = tryDecodeFrame(captured);
+    if (!parsed) return null;
+    const frame = captured.slice(0, parsed.frameBytes);
+    for (const handler of [...this.handlers]) handler(frame);
     return frame;
   }
 

@@ -1,9 +1,9 @@
 /**
- * Planar perspective geometry for the optical path.
+ * Planar perspective geometry utilities.
  *
- * The transmitter renders a rectangular spatial frame. The receiver sees it
- * through an arbitrary camera pose, so the payload appears as a quadrilateral.
- * Everything here is a small, dependency-free homography toolkit:
+ * Retained as a standalone toolkit after spatial rendering was removed; the
+ * photonic carrier does not use it. It models a planar target seen through an
+ * arbitrary camera pose, so the plane appears as a quadrilateral:
  *
  *   - 4-point homography estimation (direct linear solve)
  *   - inversion / composition

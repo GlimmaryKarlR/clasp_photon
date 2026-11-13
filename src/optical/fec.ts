@@ -1,11 +1,12 @@
 /**
- * LDPC forward error correction for the optical path.
+ * LDPC forward error correction utility.
  *
- * Baseline code: systematic `[A | I]` with `k = 2048` data bits and
- * `m = 1024` parity bits (`n = 3072`), matching the 32x32x3 RGB spatial
- * frame budget. A is sparse: each check row touches `rowWeight` data bits,
- * each data bit participates in `columnWeight = m * rowWeight / k` checks.
- * Every check also contains exactly one parity bit (the identity block).
+ * Retained as a standalone baseline after spatial rendering was removed; the
+ * photonic carrier does not use it. Systematic `[A | I]` with `k = 2048` data
+ * bits and `m = 1024` parity bits (`n = 3072`). A is sparse: each check row
+ * touches `rowWeight` data bits, each data bit participates in
+ * `columnWeight = m * rowWeight / k` checks. Every check also contains exactly
+ * one parity bit (the identity block).
  *
  * Encoding only needs XORs: parity `p = A u`, so every check satisfies
  * `A u + I p = 0`. Decoding uses offset min-sum belief propagation.

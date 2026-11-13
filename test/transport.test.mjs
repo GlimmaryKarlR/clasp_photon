@@ -189,27 +189,25 @@ test('SMS loopback carries validated frames as text', async () => {
   await b.close();
 });
 
-test('Photonic carrier renders, transmits and decodes a frame', async () => {
+test('Photonic carrier moves opaque frames over a display/capture link', async () => {
   const shown = [];
   const tx = new PhotonicCarrier({
     link: {
-      display(image) {
-        shown.push(image);
+      display(frame) {
+        shown.push(frame);
       },
       capture() {
         throw new Error('transmitter cannot capture');
       },
     },
-    maxIterations: 60,
   });
   const rx = new PhotonicCarrier({
     link: {
       display() {},
       capture() {
-        return shown.shift();
+        return shown.shift() ?? null;
       },
     },
-    maxIterations: 60,
   });
 
   const frame = buildFrame(FrameType.Data, payload(40, 6), {
@@ -219,7 +217,8 @@ test('Photonic carrier renders, transmits and decodes a frame', async () => {
   assert.ok(frame.length <= PHOTONIC_FRAME_BYTES);
   await tx.send(frame);
   assert.equal(shown.length, 1);
-  assert.equal(shown[0].width, 320);
+  // The carrier does not render or interpret an image; it forwards frame bytes.
+  assert.deepEqual(Array.from(shown[0]), Array.from(frame));
 
   const received = [];
   rx.onReceive((bytes) => received.push(bytes));
@@ -228,8 +227,8 @@ test('Photonic carrier renders, transmits and decodes a frame', async () => {
   assert.deepEqual(Array.from(decoded), Array.from(frame));
   assert.deepEqual(Array.from(received[0]), Array.from(frame));
 
-  // A blank capture must not decode to a frame.
-  shown.push({ width: 320, height: 320, data: new Uint8Array(320 * 320 * 3).fill(255) });
+  // Random or malformed captures must not decode to a frame.
+  shown.push(new Uint8Array(32).fill(0xa5));
   assert.equal(await rx.receiveOnce(), null);
 
   await tx.close();

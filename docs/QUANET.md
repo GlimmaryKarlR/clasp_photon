@@ -3,13 +3,13 @@
 QuaNet is a carrier-agnostic secure session layer for ordinary consumer
 devices. The design goal is simple: derive and use post-quantum keys without a
 central authority, then move the same encrypted records over whatever signal is
-available — a camera and screen today, SMS text, or a future RF/photonic
-physical layer.
+available — a camera-based lighting comparison and SMS text today, or a
+future RF/photonic byte link.
 
-The implementation in this repository is the **baseline**: all four layers are
-present, tested, and dependency-free. It is deliberately small enough to audit
-and portable enough to run in a browser, Node, or bare-metal Rust. It is not a
-certified cryptographic product.
+The implementation in this repository is the **baseline**: the session,
+framing and carrier layers are present, tested, and dependency-free. It is
+deliberately small enough to audit and portable enough to run in a browser,
+Node, or bare-metal Rust. It is not a certified cryptographic product.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -24,9 +24,9 @@ certified cryptographic product.
 │   fragmentation / reassembly, session id on every fragment │
 ├─────────────────────────────────────────────────────────────┤
 │ carrier abstraction                                         │
-│   photonic RGB frame │ SMS Base85 │ multipath failover      │
+│   photonic link │ SMS Base85 │ multipath failover           │
 ├─────────────────────────────────────────────────────────────┤
-│ physical signal: screen + camera, SMS, future RF/photonic    │
+│ physical signal: camera lighting / display / SMS            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -88,57 +88,26 @@ npm run crosscheck     # byte-for-byte Rust/WASM ↔ TypeScript ML-KEM check
 - fixed frame rate and rear-camera selection.
 
 `FrameClock` records capture timestamps, measured intervals, FPS, and jitter so
-a transmitter can align renders to display refresh and a receiver can detect
-dropped or torn frames. Browser APIs are touched lazily so the pure constraint
+a receiver can detect dropped or torn captures. Browser APIs are touched lazily so the pure constraint
 and clock logic runs in Node tests.
 
 ---
 
-## Phase 3 — spatial optical modulation
+## Phase 3 — optical utilities (retained, not on the carrier path)
 
-### Frame geometry
+Spatial RGB rendering and image decoding were removed. Sequential captures are
+compared for lighting and sensor entropy; image content is not treated as data.
+Two derived utilities remain available for future work:
 
-`src/optical/spatial.ts` renders a 32×32 cell grid, three independent bits per
-cell (one per RGB channel):
+- `src/optical/perspective.ts` — four-point homography estimation/inversion,
+  bilinear warping, planar PnP pose decomposition, maximum inscribed circle,
+  and polygon containment.
+- `src/optical/fec.ts` — a systematic LDPC baseline
+  (`k=2048`, `m=1024`, `n=3072`) with offset min-sum decoding.
 
-```
-32 × 32 × 3 = 3072 codeword bits
-```
-
-A one-cell white quiet zone surrounds the payload. Four dark finder squares
-mark the corners: the top-left marker is 2×2 cells and the other three are 3×3
-cells, which makes orientation unambiguous under any rotation. Finder selection
-is radial and rotation-invariant; both finder windings are tried and decode
-validation picks the correct one.
-
-### Perspective correction
-
-`src/optical/perspective.ts` provides the geometry toolkit:
-
-- four-point homography estimation and inversion,
-- bilinear warping (outside the source is white),
-- planar PnP pose decomposition from a homography and pinhole intrinsics,
-- maximum inscribed circle for selecting a safe render region,
-- polygon containment for the MIC candidate search.
-
-The receiver detects the finders, builds the payload homography, samples every
-cell centre, and applies a per-channel two-cluster threshold. Rectification
-produces an upright payload-only image.
-
-### Forward error correction
-
-`src/optical/fec.ts` implements a systematic LDPC baseline:
-
-```
-k = 2048 data bits (256 bytes)
-m = 1024 parity bits
-n = 3072 codeword bits
-```
-
-`A` is sparse and every check contains one identity parity bit, so encoding is
-XOR-only. Decoding uses offset min-sum belief propagation. The code corrects
-spread optical errors; it is not a standardized 5G/Wi-Fi LDPC code. A
-generalized (GLDPC) spatial construction is a natural next step.
+Neither module is used by `PhotonicCarrier`. The carrier treats its physical
+link as an opaque byte channel; the retained utilities are experimental
+building blocks, not a claim that data is hidden in pixels.
 
 ---
 
@@ -174,7 +143,7 @@ switch.
 
 | Carrier | Wire form | Payload budget |
 |---|---|---|
-| Photonic | LDPC-coded 32×32 RGB frame | 230 bytes/frame |
+| Photonic | opaque display/capture frame link | 230 bytes/frame |
 | SMS | `QP1:` + Base85 (85-character alphabet) | 80 bytes/frame, 140 chars max |
 | Loopback | in-process frame delivery | configurable; deterministic loss/corruption |
 | Multipath | ordered failover across carriers | smallest common payload |
@@ -215,7 +184,7 @@ associated data.
   decryptable by a later compromise of long-term secrets, provided session
   keys are discarded.
 - Per-direction keys and nonces, record authentication, and replay rejection.
-- Transport corruption detection (CRC-32) and optical error correction (LDPC).
+- Transport corruption detection (CRC-32).
 
 **Not provided**
 
@@ -243,11 +212,10 @@ npm run verify    # build, native tests/build, cross-check, full test suite
 ```
 
 The TypeScript suite covers SHA-3/SHAKE vectors, RFC 8439 AEAD vectors, ML-KEM
-round-trips, camera constraints and frame-clock statistics, homography/PnP/MIC,
-LDPC correction, spatial rendering and perspective-corrected decoding under
-rotation/scale/noise, Base85/framing/fragmentation, carrier failover, the
-session handshake, tamper/replay rejection, and encrypted end-to-end transfers
-over SMS and photonic carriers.
+round-trips, camera constraints and frame-clock statistics, the retained
+homography/PnP/MIC and LDPC utilities, Base85/framing/fragmentation, carrier
+failover, the session handshake, tamper/replay rejection, and encrypted
+end-to-end transfers over SMS and the photonic byte link.
 
 ---
 
@@ -255,12 +223,13 @@ over SMS and photonic carriers.
 
 - [x] Native PQ core (Rust `no_std`, Keccak, NTT, ML-KEM; TS reference; WASM)
 - [x] Manual camera sensor control and refresh-locked frame clock
-- [x] Spatial RGB modulation, LDPC baseline, homography/PnP/MIC correction
-- [x] Carrier abstraction, SMS/photonic carriers, fragmentation and failover
+- [x] Optical geometry/FEC utilities retained as standalone modules
+- [x] Sequential-photo lighting/sensor entropy comparison (legacy pairing path)
+- [x] Carrier abstraction, SMS/photonic byte link, fragmentation and failover
 - [x] ML-KEM handshake and ChaCha20-Poly1305 session records
 - [ ] Authenticated handshake (fingerprint pinning / QR-bound identity)
 - [ ] AVX2 and NEON NTT kernels
 - [ ] FIPS 203 KATs and external cryptographic review
-- [ ] Generalized LDPC (GLDPC) spatial code
+- [ ] Retire or repurpose unused optical utilities
 - [ ] Real-handset camera calibration and capture pipeline
 - [ ] CV-QIP/CV-QDS physical-layer pilot over sub-6 GHz SDR

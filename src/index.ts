@@ -80,7 +80,6 @@ export * from './sensor/cameraSensor.js';
 
 export * from './optical/perspective.js';
 export * from './optical/fec.js';
-export * from './optical/spatial.js';
 
 export * from './transport/base85.js';
 export * from './transport/framing.js';

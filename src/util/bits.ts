@@ -1,9 +1,8 @@
 /**
- * Bit and byte helpers shared by the optical and transport layers.
+ * Bit and byte helpers shared by the crypto, FEC and transport layers.
  *
- * QuaNet frames are defined in terms of individual bits (the spatial grid
- * carries three bits per cell, one per RGB channel) while carriers move
- * bytes. These helpers keep the conversion explicit and MSB-first.
+ * Some utilities operate on individual bits while carriers move bytes. These
+ * helpers keep the conversion explicit and MSB-first.
  */
 
 /** Expand bytes into an array of 0/1 bits, most-significant bit first. */

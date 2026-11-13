@@ -2,9 +2,9 @@
  * CameraSensorController — Phase 2 sensor subsystem.
  *
  * Consumer camera pipelines auto-adjust exposure, gain and focus continuously.
- * For optical data transfer that is harmful: automatic gain changes brightness
- * mid-frame, autofocus hunts while the display is being captured, and long
- * exposures smear rolling-shutter bands across spatial symbols.
+ * For repeatable capture that is harmful: automatic gain changes brightness
+ * mid-frame, autofocus hunts while the scene is being captured, and long
+ * exposures smear rolling-shutter bands across the sensor.
  *
  * This module:
  *   1. Builds explicit manual constraints (ISO, exposure time, fixed focus,
@@ -12,8 +12,8 @@
  *   2. Applies them and records what the sensor actually accepted.
  *   3. Captures two frames a fixed interval apart and reports the measured
  *      interval (the photonic co-signing path uses ~33 ms).
- *   4. Provides a display-refresh-locked `FrameClock` for transmitters so
- *      rendered symbols are not torn across refresh boundaries.
+ *   4. Provides a display-refresh-locked `FrameClock` so captures are not
+ *      torn across refresh boundaries.
  *
  * Browser-only APIs are touched lazily, so the pure helpers can be imported
  * and tested in Node.

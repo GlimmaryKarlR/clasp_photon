@@ -18,7 +18,7 @@
  *   22+N    4     CRC-32 of header + payload
  *
  * The 22-byte header is deliberately carrier-neutral: the same bytes travel
- * through an LDPC-coded RGB frame or a Base85 SMS segment. Fragmentation and
+ * through a photonic byte link or a Base85 SMS segment. Fragmentation and
  * reassembly preserve session state because every fragment carries the
  * session and message identifiers.
  */

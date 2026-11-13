@@ -285,16 +285,14 @@ test('full handshake and encrypted data run over SMS fragments', async () => {
   await responderSide.close();
 });
 
-test('encrypted session renders over the photonic carrier', async () => {
+test('encrypted session runs over the photonic link carrier', async () => {
   const { initiator, responder } = establishLocalSession(deterministic);
   const shown = [];
   const tx = new PhotonicCarrier({
-    link: { display: (image) => shown.push(image), capture: () => null },
-    maxIterations: 10,
+    link: { display: (frame) => shown.push(frame), capture: () => null },
   });
   const rx = new PhotonicCarrier({
     link: { display() {}, capture: () => shown.shift() ?? null },
-    maxIterations: 10,
   });
 
   const record = initiator.encryptText('optical record');
