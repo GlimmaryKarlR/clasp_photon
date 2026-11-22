@@ -13,7 +13,11 @@ Node, or bare-metal Rust. It is not a certified cryptographic product.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ application                                                 │
+│ application / QDL logical-site renderer (clasp_mobile)       │
+├─────────────────────────────────────────────────────────────┤
+│ Quanet message layer (src/quanet)                           │
+│   quanta (spin 0/½/1 + qubit 0/1) · XNOR fabric             │
+│   URL-free channels · chained + fragmented envelopes        │
 ├─────────────────────────────────────────────────────────────┤
 │ QuaNetSession                                               │
 │   ML-KEM-768 handshake → directional SHAKE256 keys          │
@@ -174,6 +178,48 @@ associated data.
 
 ---
 
+## Phase 5 — Quanet message layer
+
+Phases 1–4 provide a secure, carrier-agnostic session. Phase 5 defines what
+travels inside it: **quanta**, the smallest addressable unit of data.
+
+A quanta has two independent properties: `spin ∈ {0, ½, 1}` and
+`qubit ∈ {0, 1}` — six states, base-6 packed into a byte stream. The large
+XNOR fabric compares spin across a sequence first, then qubit, then combines
+the two comparison masks with XNOR. The resolved bits collapse overlapping
+quanta and produce a deterministic fingerprint.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ logical site — QDL rendered in clasp_mobile                 │
+├─────────────────────────────────────────────────────────────┤
+│ hybrid quanta store — local-first + optional cloud relay    │
+├─────────────────────────────────────────────────────────────┤
+│ message envelopes — qn:<hash> channels, XNOR-chained seq    │
+├─────────────────────────────────────────────────────────────┤
+│ QuaNetSession — framed bytes over photonic / SMS            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+There are no URLs. A channel is a content-derived identifier, and a message is
+named by the hash of its own quanta. Every envelope carries the XNOR signature
+against the previous message, so substitution or reordering is detectable.
+Fragments carry the message id and index/count, mirroring the baseline frame
+format, so a message can fail over carriers mid-transfer without renegotiating
+keys.
+
+Module map:
+
+| Module | Purpose |
+|---|---|
+| `src/quanet/quanta.ts` | spin/qubit state, base-6 packing, XNOR fabric, collapse |
+| `src/quanet/message.ts` | channel ids, chained envelopes, fragmentation/reassembly |
+
+The portable primitives live here. `clasp_mobile` adds the hybrid store and the
+QDL renderer that turns a message stream into a logical site.
+
+---
+
 ## Security properties and limits
 
 **Provided by the baseline**
@@ -227,7 +273,13 @@ end-to-end transfers over SMS and the photonic byte link.
 - [x] Sequential-photo lighting/sensor entropy comparison (legacy pairing path)
 - [x] Carrier abstraction, SMS/photonic byte link, fragmentation and failover
 - [x] ML-KEM handshake and ChaCha20-Poly1305 session records
+- [x] Quanta model (spin 0/½/1 + qubit 0/1, six-state base-6 encoding)
+- [x] Large XNOR fabric (spin first, then qubit) and collapse
+- [x] URL-free channels and XNOR-chained message envelopes
+- [x] Message fragmentation/reassembly across carriers
 - [ ] Authenticated handshake (fingerprint pinning / QR-bound identity)
+- [ ] Bind channel ids to pinned identity keys
+- [ ] QDL renderer / hybrid store parity across photon and mobile
 - [ ] AVX2 and NEON NTT kernels
 - [ ] FIPS 203 KATs and external cryptographic review
 - [ ] Retire or repurpose unused optical utilities

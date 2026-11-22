@@ -46,8 +46,56 @@ https://zenodo.org/records/24096009
 | 2 | Camera sensor | `src/sensor/cameraSensor.ts` | Manual ISO/exposure/focus/white balance, refresh-locked frame clock |
 | 3 | Optical utilities | `src/optical/` | Homography/PnP/MIC geometry and LDPC FEC retained as standalone utilities; the photonic carrier does not decode image content |
 | 4 | Transport + session | `src/transport/`, `src/session/` | Base85 SMS and photonic carriers, fragmentation/failover, ML-KEM handshake, AEAD records |
+| 5 | Quanet message layer | `src/quanet/` | Quanta (spin/qubit), XNOR fabric, URL-free channels, chained and fragmented messages |
 
 Full architecture, wire formats, and security limits: [`docs/QUANET.md`](docs/QUANET.md).
+
+### Quanet message layer (Phase 5)
+
+Phases 1–4 establish a secure *session*. Phase 5 addresses what travels in it:
+**quanta** — the smallest addressable unit of data.
+
+A quanta has two independent properties:
+
+- **spin** ∈ `{0, ½, 1}` — three states, encoded in two bits
+- **qubit** ∈ `{0, 1}` — the resolved state
+
+Six states pack base-6 into a byte stream. The large XNOR fabric compares
+**spin first, then qubit**, combines the two comparison masks with XNOR, and
+uses the result to resolve overlapping quanta and fingerprint a message chain.
+There are no URLs: a channel is a content-derived id and a message is named by
+the hash of its own quanta.
+
+```typescript
+import {
+  channelId,
+  createMessage,
+  readMessage,
+  chainValid,
+  resolveXnorFabric,
+  collapse,
+} from 'clasp-photonic-pairing';
+
+const channel = channelId('studio', 'karl');       // qn:<sha256>
+const first = createMessage(channel, 1, '(qpage "Studio")');
+const second = createMessage(channel, 2, '(text "hello")', first);
+
+chainValid(first, second);                          // true
+readMessage(second);                                // '(text "hello")'
+
+// Overlapping quanta resolve through the XNOR fabric.
+const fabric = resolveXnorFabric(first.quanta, second.quanta);
+const resolved = collapse(first.quanta, second.quanta, fabric);
+```
+
+Messages fragment with `fragmentQuanetMessage()` / `reassembleQuanetMessage()`
+so they can fail over between the photonic and SMS carriers from Phase 4.
+
+Clasp Mobile consumes this layer and adds the storage + rendering halves:
+a **hybrid quanta store** (local-first with an optional cloud relay) and a
+**QDL** (Quanet Document Language) renderer that turns a message stream into a
+logical site without fetching HTML from a URL. Photon remains the dependency-free
+portable reference for the protocol primitives.
 
 ---
 
@@ -210,6 +258,27 @@ const plaintext = responder.session.decryptText(record);
 simulations. `fingerprintPublicKey()` returns a stable SHA3-256 fingerprint for
 out-of-band pinning.
 
+Quanet message envelopes can be carried as the payload of a data frame:
+
+```typescript
+import {
+  createMessage,
+  fragmentQuanetMessage,
+  FrameType,
+} from 'clasp-photonic-pairing';
+
+const message = createMessage(channelId('studio'), 1, '(qpage "Studio")');
+for (const fragment of fragmentQuanetMessage(message, 5)) {
+  await sender.sendMessage(FrameType.Data, JSON.stringify(fragment), {
+    sessionId: session.sessionId,
+  });
+}
+```
+
+Each fragment carries the message id and its index/count, so a message can
+finish on a different carrier than it started on — the session keys do not
+change.
+
 ### Carriers
 
 ```typescript
@@ -339,6 +408,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ### QuaNet milestones
 
+- [x] Quanta model (spin 0 / ½ / 1, qubit 0 / 1, six-state base-6 packing)
+- [x] Large XNOR fabric (spin comparison, then qubit, resolved mask + fingerprint)
+- [x] URL-free channels and chained, tamper-evident message envelopes
+- [x] Message fragmentation/reassembly across carriers
 - [x] Photonic entropy source (mobile dual-photo capture)
 - [x] Entropy crypto pool (desktop / Node, no camera)
 - [x] Invite-acceptance co-signing (both sides contribute entropy at acceptance)
@@ -360,6 +433,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - [ ] Thermal parameter estimation (`τ`, `ξ`) and Holevo-bound checking (whitepaper §3)
 - [ ] LDPC reverse reconciliation + Toeplitz privacy amplification
 - [ ] SMS-band application signing pilot between two handsets
+- [ ] QDL renderer and hybrid quanta store parity across photon and mobile
+- [ ] Bind channel ids to pinned identity keys (authenticated channels)
 
 ### Library milestones
 

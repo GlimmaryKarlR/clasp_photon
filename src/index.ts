@@ -88,3 +88,34 @@ export * from './transport/carriers.js';
 export * from './session/quanetSession.js';
 
 export * from './util/bits.js';
+
+// --- QuaNet message layer (quanta, XNOR fabric, URL-free channels) -----
+// Explicit exports avoid clashing with the framing layer's `fragmentMessage`.
+
+export {
+  QUANTA_STATE_COUNT,
+  quantaState,
+  stateToQuanta,
+  encodeQuanta,
+  decodeQuanta,
+  xnor,
+  resolveXnorFabric,
+  collapse,
+  quantaFingerprint,
+  MESSAGE_SCHEMA,
+  channelId,
+  createMessage,
+  readMessage,
+  chainValid,
+  fragmentMessage as fragmentQuanetMessage,
+  reassembleMessage as reassembleQuanetMessage,
+} from './quanet/index.js';
+export type {
+  Spin,
+  Qubit,
+  Bit,
+  Quanta,
+  XnorFabric,
+  QnEnvelope,
+  QnFragment,
+} from './quanet/index.js';
