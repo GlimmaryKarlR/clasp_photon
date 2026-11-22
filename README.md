@@ -92,10 +92,10 @@ Messages fragment with `fragmentQuanetMessage()` / `reassembleQuanetMessage()`
 so they can fail over between the photonic and SMS carriers from Phase 4.
 
 Clasp Mobile consumes this layer and adds the storage + rendering halves:
-a **hybrid quanta store** (local-first with an optional cloud relay) and a
-**QDL** (Quanet Document Language) renderer that turns a message stream into a
-logical site without fetching HTML from a URL. Photon remains the dependency-free
-portable reference for the protocol primitives.
+a **hybrid quanta store** (local-first with an optional cloud relay) and
+**Quanor**, the Quanet document language — a small S-expression that turns a
+message stream into a logical site without fetching HTML from a URL. Photon
+remains the dependency-free portable reference for the protocol primitives.
 
 ---
 
@@ -433,7 +433,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - [ ] Thermal parameter estimation (`τ`, `ξ`) and Holevo-bound checking (whitepaper §3)
 - [ ] LDPC reverse reconciliation + Toeplitz privacy amplification
 - [ ] SMS-band application signing pilot between two handsets
-- [ ] QDL renderer and hybrid quanta store parity across photon and mobile
+- [ ] Quanor renderer and hybrid quanta store parity across photon and mobile
 - [ ] Bind channel ids to pinned identity keys (authenticated channels)
 
 ### Library milestones

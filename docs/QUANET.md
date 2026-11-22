@@ -13,7 +13,7 @@ Node, or bare-metal Rust. It is not a certified cryptographic product.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ application / QDL logical-site renderer (clasp_mobile)       │
+│ application / Quanor logical-site renderer (clasp_mobile)       │
 ├─────────────────────────────────────────────────────────────┤
 │ Quanet message layer (src/quanet)                           │
 │   quanta (spin 0/½/1 + qubit 0/1) · XNOR fabric             │
@@ -191,7 +191,7 @@ quanta and produce a deterministic fingerprint.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ logical site — QDL rendered in clasp_mobile                 │
+│ logical site — Quanor rendered in clasp_mobile                 │
 ├─────────────────────────────────────────────────────────────┤
 │ hybrid quanta store — local-first + optional cloud relay    │
 ├─────────────────────────────────────────────────────────────┤
@@ -215,8 +215,9 @@ Module map:
 | `src/quanet/quanta.ts` | spin/qubit state, base-6 packing, XNOR fabric, collapse |
 | `src/quanet/message.ts` | channel ids, chained envelopes, fragmentation/reassembly |
 
-The portable primitives live here. `clasp_mobile` adds the hybrid store and the
-QDL renderer that turns a message stream into a logical site.
+The portable primitives live here. `clasp_mobile` adds the hybrid store and
+**Quanor** — the Quanet document language, a compact S-expression that turns a
+message stream into a logical site.
 
 ---
 
@@ -279,7 +280,7 @@ end-to-end transfers over SMS and the photonic byte link.
 - [x] Message fragmentation/reassembly across carriers
 - [ ] Authenticated handshake (fingerprint pinning / QR-bound identity)
 - [ ] Bind channel ids to pinned identity keys
-- [ ] QDL renderer / hybrid store parity across photon and mobile
+- [ ] Quanor renderer / hybrid store parity across photon and mobile
 - [ ] AVX2 and NEON NTT kernels
 - [ ] FIPS 203 KATs and external cryptographic review
 - [ ] Retire or repurpose unused optical utilities
