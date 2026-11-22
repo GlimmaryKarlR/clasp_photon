@@ -5,7 +5,9 @@ import {
   QUANTA_STATE_COUNT,
   collapse,
   decodeQuanta,
+  decodeText,
   encodeQuanta,
+  encodeText,
   quantaState,
   resolveXnorFabric,
   stateToQuanta,
@@ -34,6 +36,15 @@ test('quanta round-trips byte streams', () => {
   for (const bytes of samples) {
     assert.deepEqual(decodeQuanta(encodeQuanta(bytes), bytes.length), bytes);
   }
+});
+
+test('text encodes directly to quanta without an alphabet', () => {
+  assert.equal(decodeText(encodeText('a')), 'a');
+  assert.equal(decodeText(encodeText('hello 世界')), 'hello 世界');
+  assert.deepEqual(
+    encodeText('a').map((q) => `${q.spin}/${q.qubit}`),
+    ['0.5/0', '1/0', '0/1']
+  );
 });
 
 test('XNOR fabric compares spin first, then qubit', () => {

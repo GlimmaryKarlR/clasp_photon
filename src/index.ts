@@ -98,6 +98,8 @@ export {
   stateToQuanta,
   encodeQuanta,
   decodeQuanta,
+  encodeText,
+  decodeText,
   xnor,
   resolveXnorFabric,
   collapse,

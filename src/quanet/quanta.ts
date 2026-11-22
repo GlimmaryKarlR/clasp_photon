@@ -65,6 +65,20 @@ export function decodeQuanta(quanta: Quanta[], byteLength: number): Uint8Array {
   return out;
 }
 
+/** Text → UTF-8 bytes → quanta. No alphabet table is involved. */
+export function encodeText(text: string): Quanta[] {
+  return encodeQuanta(new TextEncoder().encode(text));
+}
+
+/** Quanta → UTF-8 bytes → text. Byte length is recovered from the value. */
+export function decodeText(quanta: Quanta[]): string {
+  if (quanta.length === 0) return '';
+  let value = 0n;
+  for (const q of quanta) value = value * 6n + BigInt(quantaState(q));
+  const byteLength = Math.max(1, Math.ceil(value.toString(2).length / 8));
+  return new TextDecoder().decode(decodeQuanta(quanta, byteLength));
+}
+
 export function xnor(a: Bit, b: Bit): Bit {
   return a === b ? 1 : 0;
 }
