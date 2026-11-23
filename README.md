@@ -97,6 +97,11 @@ a **hybrid quanta store** (local-first with an optional cloud relay) and
 message stream into a logical site without fetching HTML from a URL. Photon
 remains the dependency-free portable reference for the protocol primitives.
 
+**QuaNor paper:** [spin-state XNOR and the Quanor language](https://zenodo.org/records/24431153) ·
+DOI [10.5281/zenodo.24431153](https://doi.org/10.5281/zenodo.24431153)
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24431153.svg)](https://doi.org/10.5281/zenodo.24431153)
+
 ---
 
 ## Native core
@@ -121,7 +126,8 @@ scalar).
 
 ## Brief
 
-https://zenodo.org/records/24058195
+- Quanet architecture: https://zenodo.org/records/24058195
+- QuaNor — a new language: https://zenodo.org/records/24431153
 
 ---
 

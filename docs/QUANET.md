@@ -217,7 +217,8 @@ Module map:
 
 The portable primitives live here. `clasp_mobile` adds the hybrid store and
 **Quanor** — the Quanet document language, a compact S-expression that turns a
-message stream into a logical site.
+message stream into a logical site. See the [QuaNor paper](https://zenodo.org/records/24431153)
+(DOI [10.5281/zenodo.24431153](https://doi.org/10.5281/zenodo.24431153)).
 
 ---
 
